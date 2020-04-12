@@ -5,72 +5,34 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
-
-	"github.com/childe/gohangout/codec"
-	"github.com/childe/gohangout/value_render"
+	"github.com/huangjacky/gohangout/codec"
+	"github.com/huangjacky/gohangout/value_render"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/glog"
 )
 
 var (
 	f func() codec.Encoder
 )
-
-type Action struct {
-	op         string
-	index      string
-	index_type string
-	id         string
-	routing    string
-	event      map[string]interface{}
-	rawSource  []byte
+const {
+	MAX_GROUP_LENGTH = 10000
+}
+type Groups struct {
+	groups	cls.LogGroupList
 }
 
-func (action *Action) Encode() []byte {
-	var (
-		meta []byte = make([]byte, 0, 1000)
-		buf  []byte
-		err  error
-	)
-	meta = append(meta, `{"`+action.op+`":{"_index":`...)
-	index, _ := f().Encode(action.index)
-	meta = append(meta, index...)
-
-	meta = append(meta, `,"_type":`...)
-	index_type, _ := f().Encode(action.index_type)
-	meta = append(meta, index_type...)
-
-	if action.id != "" {
-		meta = append(meta, `,"_id":`...)
-		doc_id, _ := f().Encode(action.id)
-		meta = append(meta, doc_id...)
+func (action *Groups) Encode() []byte {
+	v, err:= proto.Marshal(action.groups)
+	if err != nil {
+		glog.Fatal("protobuf error")
 	}
-
-	meta = append(meta, `,"routing":`...)
-	routing, _ := f().Encode(action.routing)
-	meta = append(meta, routing...)
-
-	meta = append(meta, "}}\n"...)
-
-	if action.rawSource == nil {
-		buf, err = f().Encode(action.event)
-		if err != nil {
-			glog.Errorf("could marshal event(%v):%s", action.event, err)
-			return nil
-		}
-	} else {
-		buf = action.rawSource
-	}
-
-	bulk_buf := make([]byte, 0, len(meta)+len(buf)+1)
-	bulk_buf = append(bulk_buf, meta...)
-	bulk_buf = append(bulk_buf, buf[:len(buf)]...)
-	bulk_buf = append(bulk_buf, '\n')
-	return bulk_buf
+	return v
 }
 
 type ClsBulkRequest struct {
 	events   []Event
-	bulk_buf []byte
+	bulkBuf []byte
+	length int
 }
 
 func (br *ClsBulkRequest) add(event Event) {
@@ -99,6 +61,10 @@ type ClsOutput struct {
 	host          string // cls的host地址
 	interval	int // 提交的周期时间
 	compress	bool	// 是否使用gzip压缩
+	topic	string // topic id
+	logset	string // logset
+	timestamp	string	// 时间字段
+
 	bulkProcessor BulkProcessor
 }
 
@@ -179,6 +145,16 @@ func (l *MethodLibrary) NewClsOutput(config map[interface{}]interface{}) *ClsOut
 		rst.region = v.(string)
 	} else {
 		glog.Fatal("region must be set in cls output")
+	}
+	if v, ok := config["topic"]; ok {
+		rst.topic = v.(string)
+	} else {
+		glog.Fatal("topic must be set in cls output")
+	}
+	if v, ok := config["logset"]; ok {
+		rst.logset = v.(string)
+	} else {
+		glog.Fatal("logset must be set in cls output")
 	}
 	if v, ok := config["secret_id"]; ok {
 		rst.secretID = v.(string)
