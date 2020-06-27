@@ -18,12 +18,14 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var options = &struct {
-	config     string
-	autoReload bool // 配置文件更新自动重启
-	pprof      bool
-	pprofAddr  string
-	cpuprofile string
-	memprofile string
+	config      string
+	autoReload  bool // 配置文件更新自动重启
+	pprof       bool
+	pprofAddr   string
+	monitor     bool
+	monitorAddr string
+	cpuprofile  string
+	memprofile  string
 }{}
 
 var gitCommit string
@@ -42,6 +44,8 @@ func init() {
 
 	flag.BoolVar(&options.pprof, "pprof", false, "if pprof")
 	flag.StringVar(&options.pprofAddr, "pprof-address", "127.0.0.1:8899", "default: 127.0.0.1:8899")
+	flag.BoolVar(&options.monitor, "manage", false, "self-monitor api")
+	flag.StringVar(&options.monitorAddr, "monitor-address", "127.0.0.1:9600", "default: 127.0.0.1:9600 like logstash")
 	flag.StringVar(&options.cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&options.memprofile, "memprofile", "", "write mem profile to `file`")
 
@@ -91,6 +95,11 @@ func main() {
 	if options.pprof {
 		go func() {
 			http.ListenAndServe(options.pprofAddr, nil)
+		}()
+	}
+	if options.monitor {
+		go func() {
+			http.ListenAndServe(options.monitorAddr)
 		}()
 	}
 	if options.cpuprofile != "" {
