@@ -30,6 +30,11 @@
 
   > go get github.com/childe/gohangout
 
+### 第三方 Plugin
+
+- 开发 Plugin 的例子 [gohangout-plugin-examples](https://github.com/childe/gohangout-plugin-examples)
+- [使用sarama的 Kafka Input](https://github.com/DukeAnn/gohangout-input-kafka_sarama)
+- [Redis Input](https://github.com/childe/gohangout-input-redis)
 
 
 ## 运行
@@ -68,6 +73,15 @@ pprof 的http地址
 最开始是没有这个配置的, 如果需要多线程并发处理数据, 依赖 Input 里面的配置, 比如说 Kafka 配置 `topicname: 2` 就是两个线程去消费(需要 Topic 有至少2个Partition, 保证每个线程可以消费到一个 Partition 里面的数据).
 
 但是后面出现一些矛盾, 比如说, Kafka 的 Consumer 个数多的情况下, 给 Kafka 带来更大压力, 可能导致 Rebalance 更频繁等. 所以如果 Kafka 消费数据没有瓶颈的情况下, 希望控制尽量少的 Consumer, 后面多线程的处理这些数据.
+
+### 自动更新配置
+
+默认不会监听文件系统更新，只在首次初始化时加载配置
+--reload
+
+开启这个参数后，当配置文件发生改变会马上触发shutdown，然后重新加载配置文件后运行
+
+除此之外，`kill -USR1 $pid`也会触发重新加载配置文件
 
 ## 开发新的插件
 
@@ -160,7 +174,7 @@ $.store.book[?(@.price < 10)].title
 
 ### 格式4 %{XXX}
 
-含有 `%{XXX}` 的内容, 使用自己定义的格式处理, 像上面的 `%{date} {%time}` 是把 date 字段和 time 字段组合成一个 logtime 字段. 前后以及中间可以有任何内容. 像 Elasticsearch 中的 index: `web-%{appid}-%{+2006-01-02}` 也是这种格式, %{+XXX} 代表时间字段, 会按时间格式做格式化处理.
+含有 `%{XXX}` 的内容, 使用自己定义的格式处理, 像上面的 `%{date} %{time}` 是把 date 字段和 time 字段组合成一个 logtime 字段. 前后以及中间可以有任何内容. 像 Elasticsearch 中的 index: `web-%{appid}-%{+2006-01-02}` 也是这种格式, %{+XXX} 代表时间字段, 会按时间格式做格式化处理.
 
 2006 01 02 15 06 05 这几个数字是 golang 里面特定的数字, 代表年月日时分秒. 1月2号3点4分5秒06年. 其实就像hangout里面的YYYY MM dd HH mm SS
 
@@ -319,6 +333,7 @@ Elasticsearch:
     flush_interval: 60
     concurrent: 3
     compress: false
+    es_version: 7
     retry_response_code: [401, 502]
 ```
 
@@ -360,6 +375,10 @@ bulk 的goroutine 最大值, 默认1
 #### compress
 
 默认 true, http请求时做zip压缩
+
+#### es_version
+
+默认为6，可以适配es6的版本，如果设置为7，则可以适配Elasticsearch7以上版本
 
 #### retry_response_code
 
@@ -538,6 +557,8 @@ Add:
       '[a][b]': '[stored][message]'
 ```
 
+**更多写法参见 [字段格式约定](https://github.com/childe/gohangout/#%E5%AD%97%E6%AE%B5%E6%A0%BC%E5%BC%8F%E7%BA%A6%E5%AE%9A)**
+
 1. 增加 name 字段, 内容是 childe
 2. 增加 hostname 字段, 内容是原 host 字段中的内容. (相当于改名)
 3. 增加 logtime 字段, 内容是 date 和 time 两个字段的拼接
@@ -703,11 +724,18 @@ IPIP:
     src: clientip
     target: geoip
     database: /opt/gohangout/mydata4vipday2.datx
+    type: datx
 ```
 
 #### database
 
 数据库地址. 数据可以在 [https://www.ipip.net/](https://www.ipip.net/) 下载
+
+#### type
+数据文件的类型，可选值ipdb和datx，默认是datx
+
+#### language
+ipdb查找城市时候需要传入语言，默认是CN
 
 #### src
 

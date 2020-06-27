@@ -63,10 +63,10 @@ func (c *StringConverter) convert(v interface{}) (interface{}, error) {
 	    return v, nil
 	} else {
 	    jsonString, err := json.Marshal(v)
-		if err == nil {
-		    return string(jsonString), nil
+		if err != nil {
+		    return nil, ConvertUnknownFormat
 		} else {
-		    return nil, err
+		    return string(jsonString), nil
 		}
 	}
 }
